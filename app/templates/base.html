@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}小说设定管理系统{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <nav>
+            <h1><a href="/">小说设定管理系统</a></h1>
+        </nav>
+    </header>
+    
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 小说设定管理系统</p>
+    </footer>
+</body>
+</html>
