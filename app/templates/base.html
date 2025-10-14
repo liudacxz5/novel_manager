@@ -5,66 +5,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}小说设定管理器{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-<div class="container">
-    <header>
+<header>
+    <div class="container header-container">
         <h1><a href="/">小说设定管理器</a></h1>
-    </header>
+        {% if user %}
+            <div class="user-info">
+                <span class="username">欢迎, {{ user.username }}</span>
+                <form action="/logout" method="post" class="logout-form">
+                    <button type="submit" class="btn btn-secondary btn-sm">登出</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+</header>
 
-    <main>
-        {% block content %}{% endblock %}
-    </main>
-
-    <footer>
-        <p>&copy; 2024 小说设定管理器. All Rights Reserved.</p>
-    </footer>
+<div class="container content-wrapper">
+    {% block content %}{% endblock %}
 </div>
 
-<!-- Confirmation Modal -->
-<div id="confirmationModal" class="modal-overlay">
+<footer>
+    <div class="container">
+        <p>&copy; 2024 小说设定管理器</p>
+    </div>
+</footer>
+
+<!-- Modal for delete confirmation -->
+<div class="modal-overlay" id="delete-confirm-modal">
     <div class="modal">
         <h3>确认删除</h3>
-        <p id="modal-text">你确定要删除这个项目吗？此操作无法撤销。</p>
+        <p>此操作不可逆，确定要删除吗？</p>
         <div class="modal-actions">
-            <button id="modal-cancel" class="btn btn-secondary">取消</button>
-            <form id="modal-confirm-form" method="post" action="">
-                <button id="modal-confirm" type="submit" class="btn btn-danger">确认删除</button>
-            </form>
+            <button id="modal-cancel-btn" class="btn btn-secondary">取消</button>
+            <button id="modal-confirm-btn" class="btn btn-danger">确认删除</button>
         </div>
     </div>
 </div>
 
 <script>
-    // Global scripts like the modal confirmation
-    document.addEventListener('DOMContentLoaded', function () {
-        const modalOverlay = document.getElementById('confirmationModal');
-        const modalConfirmForm = document.getElementById('modal-confirm-form');
-        const modalCancelBtn = document.getElementById('modal-cancel');
+    // Global script for delete confirmation
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('delete-confirm-modal');
+        if (!modal) return;
+        const cancelBtn = document.getElementById('modal-cancel-btn');
+        const confirmBtn = document.getElementById('modal-confirm-btn');
+        let formToSubmit = null;
 
-        const showModal = (formAction) => {
-            modalConfirmForm.action = formAction;
-            modalOverlay.classList.add('active');
-        };
-
-        const hideModal = () => {
-            modalOverlay.classList.remove('active');
-        };
-
-        document.querySelectorAll('form[action*="/delete"]').forEach(deleteForm => {
-            deleteForm.addEventListener('submit', function (event) {
-                event.preventDefault();
-                const formAction = this.action;
-                showModal(formAction);
-            });
+        // Use event delegation on the body for all forms with .delete-form
+        document.body.addEventListener('submit', function(e) {
+            // Check if the target or its parent form has the class
+            const form = e.target.closest('.delete-form');
+            if (form) {
+                e.preventDefault();
+                formToSubmit = form;
+                modal.classList.add('active');
+            }
         });
 
-        modalCancelBtn.addEventListener('click', hideModal);
+        cancelBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
+            formToSubmit = null;
+        });
 
-        modalOverlay.addEventListener('click', function (event) {
-            if (event.target === modalOverlay) {
-                hideModal();
+        confirmBtn.addEventListener('click', () => {
+            if (formToSubmit) {
+                formToSubmit.submit();
+            }
+        });
+
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+                formToSubmit = null;
             }
         });
     });

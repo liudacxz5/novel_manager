@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}登录{% endblock %}
+
+{% block content %}
+    <div class="auth-card">
+        <h2>登录</h2>
+
+        {# Display success message after registration #}
+        {% if request.query_params.get('registered') == 'true' %}
+            <div class="alert alert-success">
+                注册成功！现在可以登录了。
+            </div>
+        {% endif %}
+
+        {# Display success message after logout #}
+        {% if request.query_params.get('logged_out') == 'true' %}
+            <div class="alert alert-success">
+                您已成功登出。
+            </div>
+        {% endif %}
+
+        {# Display error message on failed login #}
+        {% if request.query_params.get('error') == 'true' %}
+            <div class="alert alert-danger">
+                用户名或密码不正确。
+            </div>
+        {% endif %}
+
+        <form action="/login" method="post">
+            <div>
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div>
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="btn-group">
+                <button type="submit" class="btn btn-primary">登录</button>
+            </div>
+        </form>
+        <p class="auth-switch">还没有账户？ <a href="/register">立即注册</a></p>
+    </div>
+{% endblock %}
+

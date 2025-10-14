@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}注册{% endblock %}
+
+{% block content %}
+    <div class="auth-card">
+        <h2>创建账户</h2>
+
+        {% set error = request.query_params.get('error') %}
+        {% if error %}
+            <div class="alert alert-danger">
+                {% if error == 'username_exists' %}
+                    该用户名已被注册。
+                {% elif error == 'long_password' %}
+                    密码过长，请使用更短的密码。
+                {% else %}
+                    注册失败，请重试。
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <form action="/register" method="post">
+            <div>
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div>
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="btn-group">
+                <button type="submit" class="btn btn-primary">注册</button>
+            </div>
+        </form>
+        <p class="auth-switch">已有账户？ <a href="/login">前往登录</a></p>
+    </div>
+{% endblock %}
+

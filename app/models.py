@@ -2,14 +2,24 @@ from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from .database import Base
 
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+
+    novels = relationship("Novel", back_populates="owner", cascade="all, delete-orphan")
+
 class Novel(Base):
     __tablename__ = "novels"
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
     author = Column(String, nullable=True)
     description = Column(Text, nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"))
 
-    setting_types = relationship("SettingType", back_populates="novel", cascade="all, delete-orphan", order_by="SettingType.order_index")
+    owner = relationship("User", back_populates="novels")
+    setting_types = relationship("SettingType", back_populates="novel", cascade="all, delete-orphan")
     setting_entries = relationship("SettingEntry", back_populates="novel", cascade="all, delete-orphan")
 
 class SettingType(Base):
@@ -17,18 +27,18 @@ class SettingType(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
     novel_id = Column(Integer, ForeignKey("novels.id"))
-    order_index = Column(Integer, nullable=False, default=0)
+    order_index = Column(Integer, default=0)
 
     novel = relationship("Novel", back_populates="setting_types")
-    entries = relationship("SettingEntry", back_populates="setting_type", cascade="all, delete-orphan", order_by="SettingEntry.order_index")
+    entries = relationship("SettingEntry", back_populates="setting_type", cascade="all, delete-orphan")
 
 class SettingEntry(Base):
     __tablename__ = "setting_entries"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
+    order_index = Column(Integer, default=0)
     novel_id = Column(Integer, ForeignKey("novels.id"))
     setting_type_id = Column(Integer, ForeignKey("setting_types.id"))
-    order_index = Column(Integer, nullable=False, default=0)
 
     novel = relationship("Novel", back_populates="setting_entries")
     setting_type = relationship("SettingType", back_populates="entries")
@@ -39,8 +49,8 @@ class SettingField(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String, nullable=False)
     value = Column(Text, nullable=True)
+    order_index = Column(Integer, default=0)
     entry_id = Column(Integer, ForeignKey("setting_entries.id"))
-    order_index = Column(Integer, nullable=False, default=0)
 
     entry = relationship("SettingEntry", back_populates="fields")
 
