@@ -3,10 +3,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from urllib.parse import quote
-import re
 from .. import crud, schemas, auth, models
 from ..database import get_db
 from ..templating import templates
+from ..format_handlers import format_handlers
 
 router = APIRouter(
     prefix="/novels",
@@ -78,13 +78,19 @@ async def handle_edit_novel(
     crud.update_novel(db, novel_id=novel_id, novel_update=novel_data, owner_id=current_user.id)
     return RedirectResponse(url=f"/novels/{novel_id}", status_code=303)
 
+
 @router.get("/{novel_id}/export", response_class=Response)
 async def handle_export_novel(
         novel_id: int,
+        format: str = "markdown",
         type_ids: Optional[List[int]] = Query(None),
         current_user: models.User = Depends(auth.get_current_user_from_cookie),
         db: Session = Depends(get_db)
 ):
+    handler = format_handlers.get(format)
+    if not handler:
+        raise HTTPException(400, "Unsupported format")
+
     novel = crud.get_novel(db, novel_id, owner_id=current_user.id)
     if not novel:
         raise HTTPException(404, "Novel not found")
@@ -95,91 +101,38 @@ async def handle_export_novel(
         setting_types = [crud.get_setting_type(db, tid) for tid in type_ids if crud.get_setting_type(db, tid)]
         setting_types = [st for st in setting_types if st and st.novel_id == novel.id]
 
-    md_content = f"# {novel.title}\n\n"
-    if novel.author:
-        md_content += f"**作者**: {novel.author}\n\n"
-    if novel.description:
-        md_content += f"## 小说简介\n\n{novel.description}\n\n"
+    content_str = handler.export_content(novel, setting_types)
 
-    md_content += "---\n\n"
-
-    for s_type in setting_types:
-        md_content += f"## {s_type.name}\n\n"
-        if not s_type.entries:
-            md_content += "*此分类下暂无条目。*\n\n"
-        for entry in s_type.entries:
-            md_content += f"### {entry.name}\n\n"
-            if not entry.fields:
-                md_content += "*此条目下暂无字段。*\n\n"
-            for field in entry.fields:
-                md_content += f"**{field.key}**: {field.value or ''}\n\n"
-            md_content += "\n"
-        md_content += "---\n\n"
-
-    file_name = f"{novel.title}_设定集.md".replace(" ", "_")
-
+    # Use .md for markdown format, otherwise use the format name
+    file_extension = "md" if format == "markdown" else format
+    file_name = f"{novel.title}_设定集.{file_extension}".replace(" ", "_")
     encoded_file_name = quote(file_name)
 
-    headers = {
-        'Content-Disposition': f'attachment; filename*=UTF-8\'\'{encoded_file_name}'
-    }
-    return Response(content=md_content.encode('utf-8'), media_type="text/markdown", headers=headers)
+    headers = {'Content-Disposition': f'attachment; filename*=UTF-8\'\'{encoded_file_name}'}
+    return Response(content=content_str.encode('utf-8'), media_type="text/plain", headers=headers)
 
 @router.post("/{novel_id}/import", response_class=RedirectResponse)
 async def handle_import_novel(
         novel_id: int,
         file: UploadFile = File(...),
+        format: str = "markdown",
         current_user: models.User = Depends(auth.get_current_user_from_cookie),
         db: Session = Depends(get_db)
 ):
+    handler = format_handlers.get(format)
+    if not handler:
+        raise HTTPException(400, "Unsupported format")
+
     novel = crud.get_novel(db, novel_id, owner_id=current_user.id)
     if not novel:
         raise HTTPException(404, "Novel not found")
 
     content = await file.read()
     content_str = content.decode('utf-8')
-    lines = content_str.split('\n')
 
-    current_type_obj = None
-    current_entry_obj = None
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        if line.startswith('## '):
-            type_name = line[3:].strip()
-            if type_name == "小说简介": continue
-
-            current_type_obj = crud.get_setting_type_by_name(db, novel_id=novel.id, name=type_name)
-            if not current_type_obj:
-                type_schema = schemas.SettingTypeCreate(name=type_name)
-                current_type_obj = crud.create_setting_type(db, setting_type=type_schema, novel_id=novel.id)
-            current_entry_obj = None
-
-        elif line.startswith('### '):
-            if not current_type_obj: continue
-            entry_name = line[4:].strip()
-            current_entry_obj = crud.get_setting_entry_by_name_and_type(db, type_id=current_type_obj.id, name=entry_name)
-            if not current_entry_obj:
-                entry_schema = schemas.SettingEntryCreate(name=entry_name)
-                current_entry_obj = crud.create_setting_entry(db, entry=entry_schema, novel_id=novel.id, type_id=current_type_obj.id)
-            else:
-                # Clear existing fields for overwrite
-                for field in current_entry_obj.fields:
-                    db.delete(field)
-                db.commit()
-
-        elif line.startswith('**'):
-            if not current_entry_obj: continue
-            match = re.match(r'\*\*(.+?)\*\*:\s*(.*)', line)
-            if match:
-                key, value = match.groups()
-                crud.create_setting_field(db, key=key.strip(), value=value.strip(), entry_id=current_entry_obj.id)
+    handler.import_content(novel_id, content_str, db)
 
     return RedirectResponse(url=f"/novels/{novel_id}", status_code=303)
-
 
 @router.post("/{novel_id}/delete", response_class=RedirectResponse)
 async def handle_delete_novel(

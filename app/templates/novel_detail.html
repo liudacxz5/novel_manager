@@ -92,7 +92,7 @@
                                 </div>
                             </div>
                             <!-- Edit Mode (hidden by default) -->
-                            <div class="setting-edit-form">
+                            <div class="setting-edit-form" style="display: none;">
                                 <form action="/novels/{{ novel.id }}/entries/{{ entry.id }}/edit" method="post">
                                     <div>
                                         <label for="name-{{ entry.id }}">名称/标题</label>
@@ -142,6 +142,7 @@
 {% block scripts %}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+
             // --- In-place Edit, Sort, and Add/Remove Fields ---
             document.querySelectorAll('.setting-item').forEach(item => {
                 const viewMode = item.querySelector('.setting-view');
@@ -187,6 +188,8 @@
                 if(fieldsContainer){
                     fieldsContainer.addEventListener('click', e => {
                         const group = e.target.closest('.field-group');
+                        if (!group) return;
+
                         if (e.target.matches('.remove-field-btn')) {
                             group.remove();
                         } else if (e.target.matches('.move-up-btn')) {
@@ -235,6 +238,7 @@
                 });
             });
 
+
             // --- Scrollspy Logic ---
             const sections = document.querySelectorAll('.category-title, .setting-item');
             const tocLinks = document.querySelectorAll('.toc-list a');
@@ -251,14 +255,17 @@
                     let activeLinkFound = false;
                     tocLinks.forEach(link => {
                         link.classList.remove('active');
+                        const parentCategoryHeaderLink = link.closest('.toc-category')?.querySelector('.toc-category-header a');
+                        if(parentCategoryHeaderLink) parentCategoryHeaderLink.classList.remove('active');
+
                         if (link.getAttribute('href') === '#' + currentId) {
                             link.classList.add('active');
                             activeLinkFound = true;
 
-                            const parentCategory = link.closest('.toc-category');
-                            if (parentCategory) {
-                                parentCategory.querySelector('.toc-category-header a').classList.add('active');
-                                if (!parentCategory.classList.contains('open')) {
+                            if (parentCategoryHeaderLink) {
+                                parentCategoryHeaderLink.classList.add('active');
+                                const parentCategory = link.closest('.toc-category');
+                                if (parentCategory && !parentCategory.classList.contains('open')) {
                                     parentCategory.classList.add('open');
                                     const nestedList = parentCategory.querySelector('.toc-list-nested');
                                     if(nestedList) nestedList.style.maxHeight = nestedList.scrollHeight + "px";
@@ -266,22 +273,16 @@
                             }
                         }
                     });
-
-                    if (!activeLinkFound) {
-                        tocLinks.forEach(link => {
-                            if(link.getAttribute('href') === '#' + currentId) {
-                                link.classList.add('active');
-                            }
-                        });
-                    }
                 };
+
                 window.addEventListener('scroll', onScroll);
                 onScroll();
             }
 
             // --- Export & Import Logic ---
             const novelId = {{ novel.id }};
-            // Export
+
+            // Export Modal
             const exportBtn = document.getElementById('export-btn');
             const exportModal = document.getElementById('export-modal');
             const exportCancelBtn = document.getElementById('export-cancel-btn');
@@ -290,19 +291,35 @@
 
             if (exportBtn) {
                 exportBtn.addEventListener('click', () => {
-                    let content = `<p>请选择要导出的设定类型：</p><div class="checkbox-group"><label><input type="checkbox" id="select-all-types" checked><strong>全选 / 全不选</strong></label></div><hr>`;
+                    let content = `
+                <div class="export-options">
+                    <div class="form-group">
+                        <label for="export-format">选择导出格式:</label>
+                        <select id="export-format" name="format">
+                            <option value="markdown" selected>Markdown (.md)</option>
+                        </select>
+                    </div>
+                    <hr>
+                    <p>请选择要导出的设定类型：</p>
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="select-all-types" checked>
+                            <strong>全选 / 全不选</strong>
+                        </label>
+                    </div>
+            `;
                     const types = document.querySelectorAll('.toc-category-header a');
                     types.forEach(typeLink => {
                         const typeName = typeLink.textContent;
                         const typeId = typeLink.getAttribute('href').replace('#category-', '');
                         content += `<label><input type="checkbox" name="type_ids" value="${typeId}" checked> ${typeName}</label>`;
                     });
+                    content += '</div>';
                     exportModalBody.innerHTML = content;
                     exportModal.classList.add('active');
+
                     document.getElementById('select-all-types').addEventListener('change', function() {
-                        exportModalBody.querySelectorAll('input[name="type_ids"]').forEach(cb => {
-                            cb.checked = this.checked;
-                        });
+                        exportModalBody.querySelectorAll('input[name="type_ids"]').forEach(cb => cb.checked = this.checked);
                     });
                 });
             }
@@ -311,17 +328,20 @@
             if(exportForm) {
                 exportForm.addEventListener('submit', e => {
                     e.preventDefault();
-                    const selectedTypes = Array.from(exportForm.querySelectorAll('input[name="type_ids"]:checked')).map(cb => `type_ids=${cb.value}`);
+                    const format = exportForm.querySelector('#export-format').value;
+                    const selectedTypes = Array.from(exportForm.querySelectorAll('input[name="type_ids"]:checked'))
+                        .map(cb => `type_ids=${cb.value}`);
+
+                    let exportUrl = `/novels/${novelId}/export?format=${format}`;
                     if (selectedTypes.length > 0) {
-                        window.location.href = `/novels/${novelId}/export?${selectedTypes.join('&')}`;
-                    } else {
-                        alert("请至少选择一个要导出的类型。");
+                        exportUrl += `&${selectedTypes.join('&')}`;
                     }
+                    window.location.href = exportUrl;
                     exportModal.classList.remove('active');
                 });
             }
 
-            // Import
+            // Import Modal
             const importBtn = document.getElementById('import-btn');
             const importModal = document.getElementById('import-modal');
             const importCancelBtn = document.getElementById('import-cancel-btn');
@@ -330,8 +350,15 @@
             if(importBtn) importBtn.addEventListener('click', () => importModal.classList.add('active'));
             if(importCancelBtn) importCancelBtn.addEventListener('click', () => importModal.classList.remove('active'));
             if(importModal) importModal.addEventListener('click', e => { if (e.target === importModal) importModal.classList.remove('active'); });
-            if(importForm) importForm.action = `/novels/${novelId}/import`;
-
+            if(importForm) {
+                importForm.action = `/novels/${novelId}/import?format=markdown`;
+                const importFormatSelector = document.querySelector('#import-format');
+                if(importFormatSelector){
+                    importFormatSelector.addEventListener('change', ()=>{
+                        importForm.action = `/novels/${novelId}/import?format=${importFormatSelector.value}`;
+                    });
+                }
+            }
         });
     </script>
 {% endblock %}
