@@ -9,7 +9,7 @@ class Novel(Base):
     author = Column(String, nullable=True)
     description = Column(Text, nullable=True)
 
-    setting_types = relationship("SettingType", back_populates="novel", cascade="all, delete-orphan")
+    setting_types = relationship("SettingType", back_populates="novel", cascade="all, delete-orphan", order_by="SettingType.order_index")
     setting_entries = relationship("SettingEntry", back_populates="novel", cascade="all, delete-orphan")
 
 class SettingType(Base):
@@ -17,9 +17,10 @@ class SettingType(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
     novel_id = Column(Integer, ForeignKey("novels.id"))
+    order_index = Column(Integer, nullable=False, default=0)
 
     novel = relationship("Novel", back_populates="setting_types")
-    entries = relationship("SettingEntry", back_populates="setting_type", cascade="all, delete-orphan")
+    entries = relationship("SettingEntry", back_populates="setting_type", cascade="all, delete-orphan", order_by="SettingEntry.order_index")
 
 class SettingEntry(Base):
     __tablename__ = "setting_entries"
@@ -27,6 +28,7 @@ class SettingEntry(Base):
     name = Column(String, index=True, nullable=False)
     novel_id = Column(Integer, ForeignKey("novels.id"))
     setting_type_id = Column(Integer, ForeignKey("setting_types.id"))
+    order_index = Column(Integer, nullable=False, default=0)
 
     novel = relationship("Novel", back_populates="setting_entries")
     setting_type = relationship("SettingType", back_populates="entries")

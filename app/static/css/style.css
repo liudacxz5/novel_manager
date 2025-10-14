@@ -559,3 +559,76 @@ a.internal-link:hover {
     .toc-sidebar { width: 100%; position: static; }
 }
 
+.key-value-pair input[type="text"] {
+    font-weight: bold;
+}
+.field-group .remove-field-btn {
+    align-self: center;
+}
+
+#add-field-btn, .add-field-btn {
+    align-self: flex-start;
+    margin-top: 10px;
+}
+
+/* New styles for inline editing form */
+.setting-edit-form {
+    padding-top: 1rem;
+}
+
+.setting-edit-form hr {
+    margin: 1.5rem 0;
+    border: 0;
+    border-top: 1px solid #e9ecef;
+}
+
+.setting-edit-form h3 {
+    margin-bottom: 1rem;
+    font-size: 1.2em;
+}
+
+.main-content {
+    flex: 1;
+    min-width: 0; /* Important for flexbox wrapping */
+}
+
+/* Collapsible Setting Item Styles */
+.collapsible .collapsible-header {
+    cursor: pointer;
+    position: relative;
+    /* Add padding to prevent content from going under the arrow */
+    padding-right: 30px;
+}
+
+/* Arrow indicator for collapsible */
+.collapsible .collapsible-header::after {
+    content: '▼';
+    font-size: 0.8em;
+    color: #6c757d;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%) rotate(0deg);
+    transition: transform 0.3s ease;
+}
+
+.collapsible.active .collapsible-header::after {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+.collapsible .collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out, margin-top 0.4s ease-out, padding-top 0.4s ease-out, border-top-width 0.4s ease-out;
+    border-top: 0px solid #e9ecef; /* Start with no border */
+    padding-top: 0;
+    margin-top: 0;
+}
+
+.collapsible.active .collapsible-content {
+    /* max-height is set by JavaScript */
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+

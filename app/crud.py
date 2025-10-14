@@ -39,10 +39,14 @@ def get_setting_type(db: Session, type_id: int):
     return db.query(models.SettingType).filter(models.SettingType.id == type_id).first()
 
 def get_setting_types_by_novel(db: Session, novel_id: int):
-    return db.query(models.SettingType).filter(models.SettingType.novel_id == novel_id).order_by(models.SettingType.name).all()
+    return db.query(models.SettingType).filter(models.SettingType.novel_id == novel_id).order_by(models.SettingType.order_index).all()
 
 def create_setting_type(db: Session, setting_type: schemas.SettingTypeCreate, novel_id: int):
-    db_type = models.SettingType(**setting_type.model_dump(), novel_id=novel_id)
+    # Set order index to be the next available one
+    last_type = db.query(models.SettingType).filter_by(novel_id=novel_id).order_by(models.SettingType.order_index.desc()).first()
+    next_index = (last_type.order_index + 1) if last_type else 0
+
+    db_type = models.SettingType(**setting_type.model_dump(), novel_id=novel_id, order_index=next_index)
     db.add(db_type)
     db.commit()
     db.refresh(db_type)
@@ -56,14 +60,19 @@ def get_setting_entry(db: Session, entry_id: int):
 def get_setting_entry_by_name_and_novel(db: Session, novel_id: int, entry_name: str):
     return db.query(models.SettingEntry).filter(
         models.SettingEntry.novel_id == novel_id,
-        models.SettingEntry.name == entry_name
+        models.SettingEntry.name.ilike(entry_name) # Case-insensitive search
     ).first()
 
 def create_setting_entry(db: Session, entry: schemas.SettingEntryCreate, novel_id: int, type_id: int):
-    db_entry = models.SettingEntry(**entry.model_dump(), novel_id=novel_id, setting_type_id=type_id)
+    # Set order index to be the next available one for this type
+    last_entry = db.query(models.SettingEntry).filter_by(setting_type_id=type_id).order_by(models.SettingEntry.order_index.desc()).first()
+    next_index = (last_entry.order_index + 1) if last_entry else 0
+
+    db_entry = models.SettingEntry(**entry.model_dump(), novel_id=novel_id, setting_type_id=type_id, order_index=next_index)
     db.add(db_entry)
     db.commit()
     db.refresh(db_entry)
+    # Return a bare minimum redirect, edit page will handle the rest
     return db_entry
 
 def update_setting_entry_with_fields(db: Session, entry_id: int, name: str, fields_data: List[Dict[str, str]]):
@@ -108,4 +117,30 @@ def delete_setting_entry(db: Session, entry_id: int):
         db.delete(db_entry)
         db.commit()
     return db_entry
+
+def reorder_setting_entry(db: Session, entry_id: int, direction: str):
+    entry_to_move = get_setting_entry(db, entry_id)
+    if not entry_to_move:
+        return None
+
+    # Get all siblings to determine the swap target
+    siblings = db.query(models.SettingEntry).filter_by(setting_type_id=entry_to_move.setting_type_id).order_by(models.SettingEntry.order_index).all()
+
+    try:
+        current_pos = siblings.index(entry_to_move)
+    except ValueError:
+        return None # Should not happen
+
+    if direction == "up" and current_pos > 0:
+        swap_with = siblings[current_pos - 1]
+    elif direction == "down" and current_pos < len(siblings) - 1:
+        swap_with = siblings[current_pos + 1]
+    else:
+        return entry_to_move # Cannot move further
+
+    # Swap order indices
+    entry_to_move.order_index, swap_with.order_index = swap_with.order_index, entry_to_move.order_index
+
+    db.commit()
+    return entry_to_move
 

@@ -3,6 +3,9 @@
 {% block title %}编辑 {{ novel.title }} - {{ super() }}{% endblock %}
 
 {% block content %}
+    <div class="breadcrumb">
+        <a href="/novels/{{ novel.id }}">返回《{{ novel.title }}》</a>
+    </div>
     <div class="card">
         <h2>编辑小说：「{{ novel.title }}」</h2>
         <form action="/novels/{{ novel.id }}/edit" method="post">
@@ -24,8 +27,9 @@
 
             <div class="btn-group">
                 <button type="submit" class="btn btn-primary">保存更改</button>
-                <a href="/" class="btn btn-secondary">取消</a>
+                <a href="/novels/{{ novel.id }}" class="btn btn-secondary">取消</a>
             </div>
         </form>
     </div>
 {% endblock %}
+

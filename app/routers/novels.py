@@ -84,31 +84,27 @@ async def handle_create_type(novel_id: int, name: str = Form(...), db: Session =
 # --- Routes for Setting Entries ---
 @router.get("/{novel_id}/entries/new", response_class=HTMLResponse)
 async def show_create_entry_form(request: Request, novel_id: int, type_id: int, db: Session = Depends(get_db)):
+    # This route now directly handles the creation and redirects to the edit view of the detail page
     novel = crud.get_novel(db, novel_id)
     setting_type = crud.get_setting_type(db, type_id)
     if not novel or not setting_type or setting_type.novel_id != novel.id:
         raise HTTPException(404, "Novel or Setting Type not found")
-    # Redirect to the dynamic edit_entry page, which also handles creation
-    return templates.TemplateResponse("edit_entry.html", {"request": request, "novel": novel, "setting_type": setting_type, "entry": None, "is_new": True})
 
-@router.post("/{novel_id}/entries/new", response_class=RedirectResponse)
-async def handle_create_entry(novel_id: int, type_id: int, name: str = Form(...), db: Session = Depends(get_db)):
-    entry_data = schemas.SettingEntryCreate(name=name)
+    # Create a new entry with a default name and redirect
+    entry_data = schemas.SettingEntryCreate(name=f"新 {setting_type.name}")
     new_entry = crud.create_setting_entry(db, entry=entry_data, novel_id=novel_id, type_id=type_id)
-    # Redirect to the edit page to add custom fields
-    return RedirectResponse(url=f"/novels/{novel_id}/entries/{new_entry.id}/edit", status_code=303)
 
-@router.get("/{novel_id}/entries/{entry_id}/edit", response_class=HTMLResponse)
-async def show_edit_entry_form(request: Request, novel_id: int, entry_id: int, db: Session = Depends(get_db)):
-    novel = crud.get_novel(db, novel_id)
-    entry = crud.get_setting_entry(db, entry_id)
-    if not novel or not entry or entry.novel_id != novel.id:
-        raise HTTPException(404, "Novel or Entry not found")
-    return templates.TemplateResponse("edit_entry.html", {"request": request, "novel": novel, "setting_type": entry.setting_type, "entry": entry, "is_new": False})
+    # Redirect to the main detail page, with a hash to the new, editable entry
+    return RedirectResponse(url=f"/novels/{novel_id}#entry-{new_entry.id}", status_code=303)
 
-@router.post("/{novel_id}/entries/{entry_id}/edit", response_class=RedirectResponse)
-async def handle_edit_entry(request: Request, novel_id: int, entry_id: int, db: Session = Depends(get_db)):
+
+@router.post("/entries/{entry_id}/edit", response_class=RedirectResponse)
+async def handle_edit_entry(request: Request, entry_id: int, db: Session = Depends(get_db)):
     form_data = await request.form()
+    entry = crud.get_setting_entry(db, entry_id)
+    if not entry:
+        raise HTTPException(404, "Entry not found")
+
     entry_name = form_data.get("name")
 
     fields = []
@@ -124,7 +120,7 @@ async def handle_edit_entry(request: Request, novel_id: int, entry_id: int, db: 
         })
 
     crud.update_setting_entry_with_fields(db, entry_id=entry_id, name=entry_name, fields_data=fields)
-    return RedirectResponse(url=f"/novels/{novel_id}", status_code=303)
+    return RedirectResponse(url=f"/novels/{entry.novel_id}#entry-{entry_id}", status_code=303)
 
 @router.post("/entries/{entry_id}/delete", response_class=RedirectResponse)
 async def handle_delete_entry(entry_id: int, db: Session = Depends(get_db)):
@@ -134,4 +130,11 @@ async def handle_delete_entry(entry_id: int, db: Session = Depends(get_db)):
     novel_id = entry.novel_id
     crud.delete_setting_entry(db, entry_id=entry_id)
     return RedirectResponse(url=f"/novels/{novel_id}", status_code=303)
+
+@router.post("/entries/{entry_id}/move/{direction}", response_class=RedirectResponse)
+async def handle_reorder_entry(entry_id: int, direction: str, db: Session = Depends(get_db)):
+    entry = crud.reorder_setting_entry(db, entry_id, direction)
+    if not entry:
+        raise HTTPException(404, "Entry not found or cannot be moved")
+    return RedirectResponse(url=f"/novels/{entry.novel_id}#entry-{entry_id}", status_code=303)
 
