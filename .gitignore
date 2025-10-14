@@ -130,7 +130,7 @@ dmypy.json
 .idea/
 *.swp
 *.swo
-
+*.iml
 # OS generated files
 .DS_Store
 .DS_Store?
