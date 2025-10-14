@@ -3,12 +3,15 @@
 {% block title %}{{ novel.title }} - 详情{% endblock %}
 
 {% block content %}
-    <div class="breadcrumb">
-        <a href="/">返回首页</a>
-    </div>
     <div class="card">
         <div class="card-header">
             <h1>{{ novel.title }}</h1>
+            <div class="card-actions">
+                <a href="/novels/{{ novel.id }}/edit" class="btn btn-secondary btn-sm">编辑小说</a>
+                <form action="/novels/{{ novel.id }}/delete" method="post" class="delete-form">
+                    <button type="submit" class="btn btn-danger btn-sm">删除小说</button>
+                </form>
+            </div>
         </div>
         {% if novel.author %}
             <p><strong>作者:</strong> {{ novel.author }}</p>
@@ -16,24 +19,22 @@
         {% if novel.description %}
             <p>{{ novel.description }}</p>
         {% endif %}
-        <div class="card-actions">
-            <a href="/novels/{{ novel.id }}/edit" class="btn btn-secondary btn-sm">编辑小说</a>
-            <form action="/novels/{{ novel.id }}/delete" method="post" class="delete-form">
-                <button type="submit" class="btn btn-danger btn-sm">删除小说</button>
-            </form>
-        </div>
     </div>
 
     <div class="content-header">
         <h2>设定列表</h2>
-        <div class="dropdown">
-            <button class="btn btn-primary">添加新设定 ▼</button>
-            <div class="dropdown-content">
-                {% for type in setting_types %}
-                    <a href="/novels/{{ novel.id }}/entries/new?type_id={{ type.id }}">添加 {{ type.name }}</a>
-                {% endfor %}
-                <hr>
-                <a href="/novels/{{ novel.id }}/types/new">新建设定类型...</a>
+        <div class="btn-group">
+            <button id="import-btn" class="btn btn-secondary">导入设定</button>
+            <button id="export-btn" class="btn btn-secondary">导出设定</button>
+            <div class="dropdown">
+                <button class="btn btn-primary">添加新设定 ▼</button>
+                <div class="dropdown-content">
+                    {% for type in setting_types %}
+                        <a href="/novels/{{ novel.id }}/entries/new?type_id={{ type.id }}">添加 {{ type.name }}</a>
+                    {% endfor %}
+                    <hr>
+                    <a href="/novels/{{ novel.id }}/types/new">新建设定类型...</a>
+                </div>
             </div>
         </div>
     </div>
@@ -44,7 +45,19 @@
                 <h3>目录</h3>
                 <ul class="toc-list">
                     {% for type in setting_types %}
-                        <li><a href="#category-{{ type.id }}">{{ type.name }}</a></li>
+                        <li class="toc-category">
+                            <div class="toc-category-header">
+                                <span class="toc-toggle"></span>
+                                <a href="#category-{{ type.id }}">{{ type.name }}</a>
+                            </div>
+                            {% if type.entries %}
+                                <ul class="toc-list-nested">
+                                    {% for entry in type.entries %}
+                                        <li><a href="#entry-{{ entry.id }}">{{ entry.name }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </li>
                     {% endfor %}
                 </ul>
             </div>
@@ -78,10 +91,9 @@
                                     {% endfor %}
                                 </div>
                             </div>
-
                             <!-- Edit Mode (hidden by default) -->
-                            <div class="setting-edit-form" style="display: none;">
-                                <form action="/novels/entries/{{ entry.id }}/edit" method="post">
+                            <div class="setting-edit-form">
+                                <form action="/novels/{{ novel.id }}/entries/{{ entry.id }}/edit" method="post">
                                     <div>
                                         <label for="name-{{ entry.id }}">名称/标题</label>
                                         <input type="text" id="name-{{ entry.id }}" name="name" value="{{ entry.name }}" required>
@@ -97,10 +109,10 @@
                                                 </div>
                                                 <input type="hidden" name="field_id" value="{{ field.id }}">
                                                 <div class="key-value-pair">
-                                                    <input type="text" name="field_key" placeholder="字段名" value="{{ field.key }}">
+                                                    <input type="text" name="field_key" placeholder="字段名 (如: 年龄)" value="{{ field.key }}">
                                                     <textarea name="field_value" placeholder="字段值 (支持 Markdown)" rows="3">{{ field.value or '' }}</textarea>
                                                 </div>
-                                                <button type="button" class="btn btn-danger btn-sm remove-field-btn">移除</button>
+                                                <button type="button" class="btn-icon remove-field-btn" title="移除字段">×</button>
                                             </div>
                                         {% endfor %}
                                     </div>
@@ -118,6 +130,7 @@
                         <p>此分类下暂无条目。</p>
                     {% endif %}
                 {% endfor %}
+
                 {% if not setting_types %}
                     <div class="card"><p>还没有任何设定类型，快去“添加新设定”创建一个吧！</p></div>
                 {% endif %}
@@ -129,103 +142,196 @@
 {% block scripts %}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // --- INLINE EDITING LOGIC ---
+            // --- In-place Edit, Sort, and Add/Remove Fields ---
             document.querySelectorAll('.setting-item').forEach(item => {
                 const viewMode = item.querySelector('.setting-view');
                 const editMode = item.querySelector('.setting-edit-form');
                 const editBtn = item.querySelector('.edit-btn');
                 const cancelBtn = item.querySelector('.cancel-edit-btn');
+                const addFieldBtn = item.querySelector('.add-field-btn');
+                const fieldsContainer = item.querySelector('.fields-container');
 
-                editBtn.addEventListener('click', () => {
-                    viewMode.style.display = 'none';
-                    editMode.style.display = 'block';
-                });
+                if (editBtn) {
+                    editBtn.addEventListener('click', () => {
+                        viewMode.style.display = 'none';
+                        editMode.style.display = 'block';
+                    });
+                }
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', () => {
+                        viewMode.style.display = 'block';
+                        editMode.style.display = 'none';
+                    });
+                }
 
-                cancelBtn.addEventListener('click', () => {
-                    editMode.style.display = 'none';
-                    viewMode.style.display = 'block';
-                });
+                if (addFieldBtn && fieldsContainer) {
+                    addFieldBtn.addEventListener('click', () => {
+                        const newField = document.createElement('div');
+                        newField.className = 'field-group';
+                        newField.innerHTML = `
+                    <div class="field-controls">
+                        <button type="button" class="btn-icon move-up-btn" title="上移">▲</button>
+                        <button type="button" class="btn-icon move-down-btn" title="下移">▼</button>
+                    </div>
+                    <input type="hidden" name="field_id" value="">
+                    <div class="key-value-pair">
+                        <input type="text" name="field_key" placeholder="字段名">
+                        <textarea name="field_value" placeholder="字段值 (支持 Markdown)" rows="3"></textarea>
+                    </div>
+                    <button type="button" class="btn-icon remove-field-btn" title="移除字段">×</button>
+                `;
+                        fieldsContainer.appendChild(newField);
+                    });
+                }
 
-                // Dynamic fields logic scoped to each edit form
-                const fieldsContainer = editMode.querySelector('.fields-container');
-                const addFieldBtn = editMode.querySelector('.add-field-btn');
-
-                addFieldBtn.addEventListener('click', () => {
-                    const div = document.createElement('div');
-                    div.className = 'field-group';
-                    div.innerHTML = `
-                <div class="field-controls">
-                    <button type="button" class="btn-icon move-up-btn" title="上移">▲</button>
-                    <button type="button" class="btn-icon move-down-btn" title="下移">▼</button>
-                </div>
-                <input type="hidden" name="field_id" value="">
-                <div class="key-value-pair">
-                    <input type="text" name="field_key" placeholder="字段名 (如: 年龄)">
-                    <textarea name="field_value" placeholder="字段值 (支持 Markdown)" rows="3"></textarea>
-                </div>
-                <button type="button" class="btn btn-danger btn-sm remove-field-btn">移除</button>
-            `;
-                    fieldsContainer.appendChild(div);
-                });
-
-                fieldsContainer.addEventListener('click', function(e) {
-                    const fieldGroup = e.target.closest('.field-group');
-                    if (!fieldGroup) return;
-                    if (e.target.closest('.move-up-btn')) {
-                        const prev = fieldGroup.previousElementSibling;
-                        if (prev) fieldsContainer.insertBefore(fieldGroup, prev);
-                    }
-                    if (e.target.closest('.move-down-btn')) {
-                        const next = fieldGroup.nextElementSibling;
-                        if (next) fieldsContainer.insertBefore(next, fieldGroup);
-                    }
-                    if (e.target.closest('.remove-field-btn')) {
-                        fieldGroup.remove();
-                    }
-                });
+                if(fieldsContainer){
+                    fieldsContainer.addEventListener('click', e => {
+                        const group = e.target.closest('.field-group');
+                        if (e.target.matches('.remove-field-btn')) {
+                            group.remove();
+                        } else if (e.target.matches('.move-up-btn')) {
+                            if (group.previousElementSibling) {
+                                group.parentNode.insertBefore(group, group.previousElementSibling);
+                            }
+                        } else if (e.target.matches('.move-down-btn')) {
+                            if (group.nextElementSibling) {
+                                group.parentNode.insertBefore(group.nextElementSibling, group);
+                            }
+                        }
+                    });
+                }
             });
 
-            // --- COLLAPSIBLE LOGIC ---
-            document.querySelectorAll('.setting-view .collapsible-header').forEach(header => {
+            // --- Collapsible Logic for Main Content Cards ---
+            document.querySelectorAll('.collapsible-header').forEach(header => {
                 header.addEventListener('click', function(event) {
-                    // Stop if the click is on an action button/link
-                    if (event.target.closest('a, button, form')) {
-                        return;
-                    }
-                    const item = this.closest('.collapsible'); // Find the parent with .collapsible
-                    // We use the class on the item to control the arrow direction in CSS
+                    if (event.target.closest('a, button, form')) return;
+                    const item = this.closest('.collapsible');
                     item.classList.toggle('active');
-                    const content = this.nextElementSibling; // .collapsible-content
-                    if (content.style.maxHeight) {
-                        content.style.maxHeight = null;
-                    } else {
-                        content.style.maxHeight = content.scrollHeight + "px";
+                    const content = item.querySelector('.collapsible-content');
+                    if (content) {
+                        if (content.style.maxHeight) {
+                            content.style.maxHeight = null;
+                        } else {
+                            content.style.maxHeight = content.scrollHeight + "px";
+                        }
                     }
                 });
             });
 
-            // --- SCROLLSPY LOGIC ---
-            const sections = document.querySelectorAll('.category-title');
+            // --- Collapsible Logic for TOC Sidebar ---
+            document.querySelectorAll('.toc-toggle').forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const categoryLi = this.closest('.toc-category');
+                    categoryLi.classList.toggle('open');
+                    const nestedList = categoryLi.querySelector('.toc-list-nested');
+                    if (nestedList) {
+                        if (nestedList.style.maxHeight) {
+                            nestedList.style.maxHeight = null;
+                        } else {
+                            nestedList.style.maxHeight = nestedList.scrollHeight + "px";
+                        }
+                    }
+                });
+            });
+
+            // --- Scrollspy Logic ---
+            const sections = document.querySelectorAll('.category-title, .setting-item');
             const tocLinks = document.querySelectorAll('.toc-list a');
+
             if (sections.length > 0 && tocLinks.length > 0) {
                 const onScroll = () => {
                     let currentId = '';
                     sections.forEach(section => {
-                        // Check if the section is in view
                         if (window.scrollY >= section.offsetTop - 150) {
                             currentId = section.getAttribute('id');
                         }
                     });
+
+                    let activeLinkFound = false;
                     tocLinks.forEach(link => {
                         link.classList.remove('active');
                         if (link.getAttribute('href') === '#' + currentId) {
                             link.classList.add('active');
+                            activeLinkFound = true;
+
+                            const parentCategory = link.closest('.toc-category');
+                            if (parentCategory) {
+                                parentCategory.querySelector('.toc-category-header a').classList.add('active');
+                                if (!parentCategory.classList.contains('open')) {
+                                    parentCategory.classList.add('open');
+                                    const nestedList = parentCategory.querySelector('.toc-list-nested');
+                                    if(nestedList) nestedList.style.maxHeight = nestedList.scrollHeight + "px";
+                                }
+                            }
                         }
                     });
+
+                    if (!activeLinkFound) {
+                        tocLinks.forEach(link => {
+                            if(link.getAttribute('href') === '#' + currentId) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
                 };
                 window.addEventListener('scroll', onScroll);
-                onScroll(); // Run on page load
+                onScroll();
             }
+
+            // --- Export & Import Logic ---
+            const novelId = {{ novel.id }};
+            // Export
+            const exportBtn = document.getElementById('export-btn');
+            const exportModal = document.getElementById('export-modal');
+            const exportCancelBtn = document.getElementById('export-cancel-btn');
+            const exportForm = document.getElementById('export-form');
+            const exportModalBody = document.getElementById('export-modal-body');
+
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => {
+                    let content = `<p>请选择要导出的设定类型：</p><div class="checkbox-group"><label><input type="checkbox" id="select-all-types" checked><strong>全选 / 全不选</strong></label></div><hr>`;
+                    const types = document.querySelectorAll('.toc-category-header a');
+                    types.forEach(typeLink => {
+                        const typeName = typeLink.textContent;
+                        const typeId = typeLink.getAttribute('href').replace('#category-', '');
+                        content += `<label><input type="checkbox" name="type_ids" value="${typeId}" checked> ${typeName}</label>`;
+                    });
+                    exportModalBody.innerHTML = content;
+                    exportModal.classList.add('active');
+                    document.getElementById('select-all-types').addEventListener('change', function() {
+                        exportModalBody.querySelectorAll('input[name="type_ids"]').forEach(cb => {
+                            cb.checked = this.checked;
+                        });
+                    });
+                });
+            }
+            if(exportCancelBtn) exportCancelBtn.addEventListener('click', () => exportModal.classList.remove('active'));
+            if(exportModal) exportModal.addEventListener('click', e => { if (e.target === exportModal) exportModal.classList.remove('active'); });
+            if(exportForm) {
+                exportForm.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const selectedTypes = Array.from(exportForm.querySelectorAll('input[name="type_ids"]:checked')).map(cb => `type_ids=${cb.value}`);
+                    if (selectedTypes.length > 0) {
+                        window.location.href = `/novels/${novelId}/export?${selectedTypes.join('&')}`;
+                    } else {
+                        alert("请至少选择一个要导出的类型。");
+                    }
+                    exportModal.classList.remove('active');
+                });
+            }
+
+            // Import
+            const importBtn = document.getElementById('import-btn');
+            const importModal = document.getElementById('import-modal');
+            const importCancelBtn = document.getElementById('import-cancel-btn');
+            const importForm = document.getElementById('import-form');
+
+            if(importBtn) importBtn.addEventListener('click', () => importModal.classList.add('active'));
+            if(importCancelBtn) importCancelBtn.addEventListener('click', () => importModal.classList.remove('active'));
+            if(importModal) importModal.addEventListener('click', e => { if (e.target === importModal) importModal.classList.remove('active'); });
+            if(importForm) importForm.action = `/novels/${novelId}/import`;
+
         });
     </script>
 {% endblock %}

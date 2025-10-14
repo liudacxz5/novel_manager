@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}小说设定管理器{% endblock %}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
@@ -44,6 +46,39 @@
     </div>
 </div>
 
+<!-- Modal for export options -->
+<div class="modal-overlay" id="export-modal">
+    <div class="modal">
+        <h3 id="export-modal-title">导出设定</h3>
+        <form id="export-form">
+            <div id="export-modal-body">
+                <!-- Dynamic content will be injected here -->
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="export-cancel-btn" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">确认导出</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- NEW: Modal for import -->
+<div class="modal-overlay" id="import-modal">
+    <div class="modal">
+        <h3>导入设定</h3>
+        <form id="import-form" method="post" enctype="multipart/form-data">
+            <div id="import-modal-body">
+                <p>请选择一个 `.md` 格式的设定文件进行上传。导入会覆盖同名条目的内容。</p>
+                <input type="file" name="file" id="import-file-input" accept=".md, .markdown" required>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="import-cancel-btn" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">开始导入</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     // Global script for delete confirmation
     document.addEventListener('DOMContentLoaded', function() {
@@ -53,9 +88,7 @@
         const confirmBtn = document.getElementById('modal-confirm-btn');
         let formToSubmit = null;
 
-        // Use event delegation on the body for all forms with .delete-form
         document.body.addEventListener('submit', function(e) {
-            // Check if the target or its parent form has the class
             const form = e.target.closest('.delete-form');
             if (form) {
                 e.preventDefault();

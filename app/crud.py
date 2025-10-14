@@ -22,7 +22,7 @@ def get_novel(db: Session, novel_id: int, owner_id: int):
     return db.query(models.Novel).filter(models.Novel.id == novel_id, models.Novel.owner_id == owner_id).first()
 
 def get_novels_by_owner(db: Session, owner_id: int, skip: int = 0, limit: int = 100):
-    return db.query(models.Novel).filter(models.Novel.owner_id == owner_id).offset(skip).limit(limit).all()
+    return db.query(models.Novel).filter(models.Novel.owner_id == owner_id).order_by(models.Novel.title).offset(skip).limit(limit).all()
 
 def create_novel(db: Session, novel: schemas.NovelCreate, owner_id: int):
     db_novel = models.Novel(**novel.model_dump(), owner_id=owner_id)
@@ -52,11 +52,13 @@ def delete_novel(db: Session, novel_id: int, owner_id: int):
 def get_setting_type(db: Session, type_id: int):
     return db.query(models.SettingType).filter(models.SettingType.id == type_id).first()
 
+def get_setting_type_by_name(db: Session, novel_id: int, name: str):
+    return db.query(models.SettingType).filter_by(novel_id=novel_id, name=name).first()
+
 def get_setting_types_by_novel(db: Session, novel_id: int):
     return db.query(models.SettingType).filter(models.SettingType.novel_id == novel_id).order_by(models.SettingType.order_index).all()
 
 def create_setting_type(db: Session, setting_type: schemas.SettingTypeCreate, novel_id: int):
-    # Get max order index for the novel
     max_order = db.query(models.SettingType).filter_by(novel_id=novel_id).count()
     db_type = models.SettingType(**setting_type.model_dump(), novel_id=novel_id, order_index=max_order)
     db.add(db_type)
@@ -64,9 +66,23 @@ def create_setting_type(db: Session, setting_type: schemas.SettingTypeCreate, no
     db.refresh(db_type)
     return db_type
 
+def reorder_setting_types(db: Session, novel_id: int, type_ids: List[int]):
+    for index, type_id in enumerate(type_ids):
+        db.query(models.SettingType).filter_by(id=type_id, novel_id=novel_id).update({"order_index": index})
+    db.commit()
+
 # --- Setting Entry & Field CRUD ---
 def get_setting_entry(db: Session, entry_id: int):
     return db.query(models.SettingEntry).filter(models.SettingEntry.id == entry_id).first()
+
+def get_setting_entry_by_name_and_novel(db: Session, novel_id: int, entry_name: str):
+    return db.query(models.SettingEntry).filter(
+        models.SettingEntry.novel_id == novel_id,
+        models.SettingEntry.name == entry_name
+    ).first()
+
+def get_setting_entry_by_name_and_type(db: Session, type_id: int, name: str):
+    return db.query(models.SettingEntry).filter_by(setting_type_id=type_id, name=name).first()
 
 def create_setting_entry(db: Session, entry: schemas.SettingEntryCreate, novel_id: int, type_id: int):
     max_order = db.query(models.SettingEntry).filter_by(setting_type_id=type_id).count()
@@ -84,6 +100,7 @@ def update_setting_entry_with_fields(db: Session, entry_id: int, name: str, fiel
     db_entry.name = name
 
     existing_fields_map = {str(field.id): field for field in db_entry.fields}
+    submitted_field_ids = set()
 
     for i, field_data in enumerate(fields_data):
         field_id = field_data.get("id")
@@ -93,6 +110,7 @@ def update_setting_entry_with_fields(db: Session, entry_id: int, name: str, fiel
         if not key: continue
 
         if field_id and field_id in existing_fields_map:
+            submitted_field_ids.add(field_id)
             field_to_update = existing_fields_map[field_id]
             field_to_update.key = key
             field_to_update.value = value
@@ -100,6 +118,10 @@ def update_setting_entry_with_fields(db: Session, entry_id: int, name: str, fiel
         else:
             new_field = models.SettingField(key=key, value=value, entry_id=entry_id, order_index=i)
             db.add(new_field)
+
+    for field_id, field_obj in existing_fields_map.items():
+        if field_id not in submitted_field_ids:
+            db.delete(field_obj)
 
     db.commit()
     db.refresh(db_entry)
@@ -112,5 +134,16 @@ def delete_setting_entry(db: Session, entry_id: int):
         db.commit()
     return db_entry
 
-# Other CRUD functions like reordering would go here...
+def reorder_setting_entries(db: Session, type_id: int, entry_ids: List[int]):
+    for index, entry_id in enumerate(entry_ids):
+        db.query(models.SettingEntry).filter_by(id=entry_id, setting_type_id=type_id).update({"order_index": index})
+    db.commit()
+
+def create_setting_field(db: Session, key: str, value: str, entry_id: int):
+    max_order = db.query(models.SettingField).filter_by(entry_id=entry_id).count()
+    db_field = models.SettingField(key=key, value=value, entry_id=entry_id, order_index=max_order)
+    db.add(db_field)
+    db.commit()
+    db.refresh(db_field)
+    return db_field
 
