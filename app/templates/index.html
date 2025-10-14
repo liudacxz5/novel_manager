@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}小说列表 - {{ super() }}{% endblock %}
+
+{% block content %}
+    <div class="content-header">
+        <h2>小说列表</h2>
+        <div class="btn-group">
+            <a href="/novels/new" class="btn btn-primary">创建新小说</a>
+        </div>
+    </div>
+
+    <div class="novel-list">
+        {% if novels %}
+            {% for novel in novels %}
+                <div class="card novel-item">
+                    <div class="card-header">
+                        <a href="/novels/{{ novel.id }}">
+                            <h2>{{ novel.title }}</h2>
+                        </a>
+                    </div>
+
+                    {% if novel.author %}
+                        <p><strong>作者:</strong> {{ novel.author }}</p>
+                    {% endif %}
+                    {% if novel.description %}
+                        <p>{{ novel.description | truncate(150) }}</p>
+                    {% endif %}
+
+                    <div class="card-actions">
+                        <a href="/novels/{{ novel.id }}/edit" class="btn btn-secondary btn-sm">编辑</a>
+                        <!-- 删除按钮表单 -->
+                        <form action="/novels/{{ novel.id }}/delete" method="post">
+                            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="card">
+                <p>还没有任何小说。请先创建一本吧！</p>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+
+

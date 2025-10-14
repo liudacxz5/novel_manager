@@ -3,23 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}小说设定管理系统{% endblock %}</title>
+    <title>{% block title %}小说设定管理器{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
-    {% block head %}{% endblock %}
 </head>
 <body>
+<div class="container">
     <header>
-        <nav>
-            <h1><a href="/">小说设定管理系统</a></h1>
-        </nav>
+        <h1><a href="/">小说设定管理器</a></h1>
     </header>
-    
+
     <main>
         {% block content %}{% endblock %}
     </main>
-    
+
     <footer>
-        <p>&copy; 2025 小说设定管理系统</p>
+        <p>&copy; 2024 小说设定管理器. All Rights Reserved.</p>
     </footer>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmationModal" class="modal-overlay">
+    <div class="modal">
+        <h3>确认删除</h3>
+        <p id="modal-text">你确定要删除这个项目吗？此操作无法撤销。</p>
+        <div class="modal-actions">
+            <button id="modal-cancel" class="btn btn-secondary">取消</button>
+            <form id="modal-confirm-form" method="post" action="">
+                <button id="modal-confirm" type="submit" class="btn btn-danger">确认删除</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global scripts like the modal confirmation
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalOverlay = document.getElementById('confirmationModal');
+        const modalConfirmForm = document.getElementById('modal-confirm-form');
+        const modalCancelBtn = document.getElementById('modal-cancel');
+
+        const showModal = (formAction) => {
+            modalConfirmForm.action = formAction;
+            modalOverlay.classList.add('active');
+        };
+
+        const hideModal = () => {
+            modalOverlay.classList.remove('active');
+        };
+
+        document.querySelectorAll('form[action*="/delete"]').forEach(deleteForm => {
+            deleteForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const formAction = this.action;
+                showModal(formAction);
+            });
+        });
+
+        modalCancelBtn.addEventListener('click', hideModal);
+
+        modalOverlay.addEventListener('click', function (event) {
+            if (event.target === modalOverlay) {
+                hideModal();
+            }
+        });
+    });
+</script>
+
+{% block scripts %}{% endblock %}
 </body>
 </html>
+

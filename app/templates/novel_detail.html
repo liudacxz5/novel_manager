@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}{{ novel.title }} - 详情{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <div class="card-header">
+            <h1>{{ novel.title }}</h1>
+        </div>
+        {% if novel.author %}
+            <p><strong>作者:</strong> {{ novel.author }}</p>
+        {% endif %}
+        {% if novel.description %}
+            <p>{{ novel.description }}</p>
+        {% endif %}
+        <div class="card-actions">
+            <a href="/novels/{{ novel.id }}/edit" class="btn btn-secondary btn-sm">编辑小说</a>
+            <form action="/novels/{{ novel.id }}/delete" method="post">
+                <button type="submit" class="btn btn-danger btn-sm">删除小说</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="content-header">
+        <h2>设定列表</h2>
+        <div class="dropdown">
+            <button class="btn btn-primary">添加新设定 ▼</button>
+            <div class="dropdown-content">
+                {% for type in setting_types %}
+                    <a href="/novels/{{ novel.id }}/entries/new?type_id={{ type.id }}">添加 {{ type.name }}</a>
+                {% endfor %}
+                <hr>
+                <a href="/novels/{{ novel.id }}/types/new">新建设定类型...</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="detail-layout">
+        <aside class="toc-sidebar">
+            <div class="card toc-card">
+                <h3>目录</h3>
+                <ul class="toc-list">
+                    {% for type in setting_types %}
+                        <li><a href="#category-{{ type.id }}">{{ type.name }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="setting-list">
+                {% for type in setting_types %}
+                    <h2 class="category-title" id="category-{{ type.id }}">{{ type.name }}</h2>
+                    {% for entry in type.entries|sort(attribute='name') %}
+                        <div class="card setting-item collapsible" id="entry-{{ entry.id }}">
+                            <div class="collapsible-header">
+                                <div class="header-main-content">
+                                    <h3>{{ entry.name }}</h3>
+                                </div>
+                                <div class="card-actions">
+                                    <a href="/novels/{{ novel.id }}/entries/{{ entry.id }}/edit" class="btn btn-secondary btn-sm">编辑</a>
+                                    <form action="/novels/entries/{{ entry.id }}/delete" method="post">
+                                        <button type="submit" class="btn btn-danger btn-sm">删除</button>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="collapsible-content">
+                                {% for field in entry.fields %}
+                                    <div class="setting-content">
+                                        <h4>{{ field.key }}</h4>
+                                        {{ field.value | markdown_to_html(db=db, novel_id=novel.id) | safe }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                    {% if not type.entries %}
+                        <p>此分类下暂无条目。</p>
+                    {% endif %}
+                {% endfor %}
+
+                {% if not setting_types %}
+                    <div class="card"><p>还没有任何设定类型，快去“添加新设定”创建一个吧！</p></div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Collapsible Logic
+            const collapsibles = document.querySelectorAll('.collapsible-header');
+            collapsibles.forEach(header => {
+                header.addEventListener('click', function(event) {
+                    if (event.target.closest('a, button, form')) return;
+                    const item = this.closest('.collapsible');
+                    item.classList.toggle('active');
+                    const content = this.nextElementSibling;
+                    content.style.maxHeight = content.style.maxHeight ? null : content.scrollHeight + "px";
+                });
+            });
+
+            // Scrollspy Logic
+            const sections = document.querySelectorAll('.category-title');
+            const tocLinks = document.querySelectorAll('.toc-list a');
+            if (sections.length === 0 || tocLinks.length === 0) return;
+            const onScroll = () => {
+                let currentId = '';
+                sections.forEach(section => {
+                    if (window.scrollY >= section.offsetTop - 150) {
+                        currentId = section.getAttribute('id');
+                    }
+                });
+                tocLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + currentId) {
+                        link.classList.add('active');
+                    }
+                });
+            };
+            window.addEventListener('scroll', onScroll);
+            onScroll();
+        });
+    </script>
+{% endblock %}
+

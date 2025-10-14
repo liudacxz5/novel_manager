@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if entry %}
+        编辑 {{ entry.name }} - {{ super() }}
+    {% else %}
+        为 {{ setting_type.name }} 添加新条目 - {{ super() }}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <div class="breadcrumb">
+        <a href="/novels/{{ novel.id }}">返回《{{ novel.title }}》</a>
+    </div>
+
+    <div class="card">
+        {% if is_new %}
+            <h2>为 {{ setting_type.name }} 添加新条目</h2>
+            <form action="/novels/{{ novel.id }}/entries/new?type_id={{ setting_type.id }}" method="post" id="entry-form">
+        {% else %}
+            <h2>编辑 {{ setting_type.name }}：「{{ entry.name }}」</h2>
+            <form action="/novels/{{ novel.id }}/entries/{{ entry.id }}/edit" method="post" id="entry-form">
+        {% endif %}
+
+        <div>
+            <label for="name">名称/标题</label>
+            <input type="text" id="name" name="name" value="{{ entry.name if entry else '' }}" required>
+        </div>
+
+        {% if not is_new %}
+            <hr>
+            <h3>自定义字段 (可拖动排序)</h3>
+            <div id="fields-container">
+                {% if entry %}
+                    {% for field in entry.fields %}
+                        <div class="field-group">
+                            <div class="field-controls">
+                                <button type="button" class="btn-icon move-up-btn" title="上移">▲</button>
+                                <button type="button" class="btn-icon move-down-btn" title="下移">▼</button>
+                            </div>
+                            <input type="hidden" name="field_id" value="{{ field.id }}">
+                            <div class="key-value-pair">
+                                <input type="text" name="field_key" placeholder="字段名 (如: 年龄)" value="{{ field.key }}">
+                                <textarea name="field_value" placeholder="字段值 (支持 Markdown)" rows="3">{{ field.value or '' }}</textarea>
+                            </div>
+                            <button type="button" class="btn btn-danger btn-sm remove-field-btn">移除</button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            <button type="button" id="add-field-btn" class="btn btn-secondary">添加新字段</button>
+            <hr>
+        {% endif %}
+
+        <div class="btn-group">
+            <button type="submit" class="btn btn-primary">保存条目</button>
+            <a href="/novels/{{ novel.id }}" class="btn btn-secondary">取消</a>
+        </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% if not is_new %}
+    {% block scripts %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const fieldsContainer = document.getElementById('fields-container');
+                const addFieldBtn = document.getElementById('add-field-btn');
+
+                function createFieldGroup() {
+                    const div = document.createElement('div');
+                    div.className = 'field-group';
+                    div.innerHTML = `
+            <div class="field-controls">
+                <button type="button" class="btn-icon move-up-btn" title="上移">▲</button>
+                <button type="button" class="btn-icon move-down-btn" title="下移">▼</button>
+            </div>
+            <input type="hidden" name="field_id" value="">
+            <div class="key-value-pair">
+                <input type="text" name="field_key" placeholder="字段名 (如: 年龄)">
+                <textarea name="field_value" placeholder="字段值 (支持 Markdown)" rows="3"></textarea>
+            </div>
+            <button type="button" class="btn btn-danger btn-sm remove-field-btn">移除</button>
+        `;
+                    fieldsContainer.appendChild(div);
+                }
+
+                addFieldBtn.addEventListener('click', createFieldGroup);
+
+                // Use event delegation for dynamically added buttons
+                fieldsContainer.addEventListener('click', function(e) {
+                    const fieldGroup = e.target.closest('.field-group');
+                    if (!fieldGroup) return;
+
+                    if (e.target.closest('.move-up-btn')) {
+                        const previousElement = fieldGroup.previousElementSibling;
+                        if (previousElement) {
+                            fieldsContainer.insertBefore(fieldGroup, previousElement);
+                        }
+                    }
+
+                    if (e.target.closest('.move-down-btn')) {
+                        const nextElement = fieldGroup.nextElementSibling;
+                        if (nextElement) {
+                            fieldsContainer.insertBefore(nextElement, fieldGroup);
+                        }
+                    }
+
+                    if (e.target.closest('.remove-field-btn')) {
+                        fieldGroup.remove();
+                    }
+                });
+            });
+        </script>
+    {% endblock %}
+{% endif %}
+

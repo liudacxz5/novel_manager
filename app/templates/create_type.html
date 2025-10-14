@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}为《{{ novel.title }}》添加新设定类型{% endblock %}
+
+{% block content %}
+    <div class="breadcrumb">
+        <a href="/novels/{{ novel.id }}">返回《{{ novel.title }}》</a>
+    </div>
+    <div class="card">
+        <h2>为《{{ novel.title }}》添加新设定类型</h2>
+        <p>设定类型是设定的高级分类，例如“角色”、“武器”、“地点”或“功法”。</p>
+        <form action="/novels/{{ novel.id }}/types/new" method="post">
+            <div>
+                <label for="name">类型名称</label>
+                <input type="text" id="name" name="name" required placeholder="例如：角色">
+            </div>
+            <div class="btn-group">
+                <button type="submit" class="btn btn-primary">保存类型</button>
+                <a href="/novels/{{ novel.id }}" class="btn btn-secondary">取消</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
