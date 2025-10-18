@@ -203,7 +203,6 @@ form input:focus, form textarea:focus {
     margin-top: 0.5rem;
 }
 
-/* Card actions */
 .card-actions {
     margin-top: 0;
     display: flex;
@@ -216,6 +215,7 @@ form input:focus, form textarea:focus {
 .card-actions form {
     margin: 0;
 }
+
 
 /* --- Specific Page Styles --- */
 /* Auth Forms */
@@ -281,14 +281,17 @@ form input:focus, form textarea:focus {
 .toc-list {
     list-style: none; padding: 0; margin: 0;
 }
+
 .toc-category {
     margin-bottom: 0.25rem;
 }
+
 .toc-category-header {
     display: flex;
     align-items: center;
     gap: 0.25rem;
 }
+
 .toc-toggle {
     width: 20px;
     height: 20px;
@@ -313,9 +316,11 @@ form input:focus, form textarea:focus {
 .toc-category.open > .toc-category-header .toc-toggle::before {
     transform: rotate(90deg);
 }
+
 .toc-category-header a {
     flex-grow: 1;
 }
+
 .toc-list a {
     text-decoration: none;
     color: var(--secondary-color);
@@ -337,9 +342,11 @@ form input:focus, form textarea:focus {
     background-color: #e7f1ff;
     border-left-color: var(--primary-color);
 }
+
 .toc-list > li > a {
     font-weight: 600;
 }
+
 .toc-list-nested {
     list-style: none;
     padding-left: 1.25rem;
@@ -351,6 +358,7 @@ form input:focus, form textarea:focus {
 .toc-category.open .toc-list-nested {
     /* max-height is set by JS */
 }
+
 .toc-list-nested a {
     font-weight: 400;
     font-size: 0.9em;
@@ -363,17 +371,42 @@ form input:focus, form textarea:focus {
     border-left-color: transparent;
 }
 
+
 /* Category & Setting Items */
-.category-title {
+.category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
     margin-top: 3rem;
     margin-bottom: 1.5rem;
-    font-size: 1.75rem;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.75rem;
 }
-.setting-list .category-title:first-of-type {
+.setting-list .category-header:first-of-type {
     margin-top: 0;
 }
+.category-header .add-entry-btn {
+    text-decoration: none;
+    font-size: 1.5em;
+    font-weight: bold;
+    line-height: 1;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.category-title {
+    margin: 0;
+    font-size: 1.75rem;
+    flex-grow: 1;
+    width: auto; /* 保留这个是个好习惯 */
+    min-width: 0; /* <-- 添加这一行，解决问题 */
+}
+
 .setting-item.card {
     padding: 1.5rem;
 }
@@ -402,6 +435,7 @@ form input:focus, form textarea:focus {
 .collapsible.active .collapsible-header::after {
     transform: translateY(-50%) rotate(270deg);
 }
+
 .collapsible-content {
     max-height: 0;
     overflow: hidden;
@@ -418,6 +452,9 @@ form input:focus, form textarea:focus {
     margin: 1.5em 0 0.5em 0;
     font-size: 1.1rem;
     font-weight: 600;
+}
+.setting-content > *:first-child {
+    margin-top: 0;
 }
 
 /* Inline Edit Form */
@@ -458,6 +495,12 @@ form input:focus, form textarea:focus {
     display: block; font-size: 0.9em; border-radius: 0.25rem;
 }
 .dropdown-content a:hover { background-color: var(--subtle-bg); }
+.dropdown-content hr {
+    border: none;
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 0.5rem 0;
+}
 
 /* Internal & Broken Links */
 .internal-link, .broken-link {
@@ -478,21 +521,7 @@ form input:focus, form textarea:focus {
 .alert-success { color: var(--success-color); background-color: #d1e7dd; border-color: #badbcc; }
 .alert-danger { color: var(--danger-color); background-color: #f8d7da; border-color: #f5c2c7; }
 
-.checkbox-group {
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 1rem;
-    margin-bottom: 1rem;
-}
-
-/* New style for file input */
-#import-modal-body input[type="file"] {
-    border: 1px solid var(--border-color);
-    padding: 0.5rem;
-    border-radius: var(--border-radius);
-    width: 100%;
-}
-
-/* Modal */
+/* Modals */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background-color: rgba(0, 0, 0, 0.5); display: flex;
@@ -502,33 +531,45 @@ form input:focus, form textarea:focus {
 .modal-overlay.active { opacity: 1; visibility: visible; }
 .modal {
     background-color: var(--card-bg); padding: 2rem; border-radius: var(--border-radius);
-    width: 90%; max-width: 400px; text-align: center;
+    width: 90%; max-width: 500px;
     transform: scale(0.95); transition: transform 0.3s ease;
 }
 .modal-overlay.active .modal { transform: scale(1); }
-.modal-actions {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
+.modal h3 { margin-top: 0; }
+.modal .modal-actions {
+    display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem;
 }
+.modal form { gap: 1rem; }
 
-/* Styles for Export Modal Options */
-.export-options p {
-    margin-top: 0;
+/* Export/Import Modal Specifics */
+.export-options p, #import-modal-body p {
+    margin-top: 0; margin-bottom: 1rem;
+}
+#import-modal-body input[type="file"] {
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    width: 100%;
+}
+.form-group {
     margin-bottom: 1rem;
-    font-weight: 500;
 }
-.export-options label {
-    display: block;
-    margin-bottom: 0.75rem;
-    cursor: pointer;
-}
-.export-options input[type="checkbox"] {
-    margin-right: 0.5rem;
+.form-group select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    font-size: 1rem;
 }
 .checkbox-group {
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 1rem;
     margin-bottom: 1rem;
+}
+.export-options label, #import-modal-body label {
+    display: block; margin-bottom: 0.75rem; cursor: pointer;
+}
+.export-options input[type="checkbox"] {
+    margin-right: 0.5rem;
 }
 

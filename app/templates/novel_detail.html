@@ -66,7 +66,10 @@
         <main class="main-content">
             <div class="setting-list">
                 {% for type in setting_types %}
-                    <h2 class="category-title" id="category-{{ type.id }}">{{ type.name }}</h2>
+                    <div class="category-header">
+                        <h2 class="category-title" id="category-{{ type.id }}">{{ type.name }}</h2>
+                        <a href="/novels/{{ novel.id }}/entries/new?type_id={{ type.id }}" class="btn-icon add-entry-btn" title="添加新 {{ type.name }}">＋</a>
+                    </div>
                     {% for entry in type.entries %}
                         <div class="card setting-item collapsible" id="entry-{{ entry.id }}">
                             <!-- View Mode -->
